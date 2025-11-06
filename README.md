@@ -29,7 +29,7 @@ mvn spring-boot:run
 | **Seguridad** | Snyk (CVEs HIGH/CRITICAL) | ✅ |
 | **Build** | Docker multi-stage → Docker Hub | ✅ |
 | **Deploy** | Docker Compose + smoke tests | ✅ |
-| **Notify** | Estado del pipeline | - |
+| **Notify** | Estado del pipeline | ✅ |
 
 **Trazabilidad**: Cada imagen tiene tag `sha-{commit}` para rastrear exactamente qué código está desplegado.
 
