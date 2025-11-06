@@ -145,6 +145,7 @@ jobs:
               environment:
                 - SPRING_PROFILES_ACTIVE=staging
                 - SPRING_CLOUD_CONFIG_ENABLED=false
+                - SPRING_SQL_INIT_MODE=never
                 - SPRING_DATASOURCE_URL=jdbc:h2:mem:testdb
                 - SPRING_H2_CONSOLE_ENABLED=true
               restart: unless-stopped
