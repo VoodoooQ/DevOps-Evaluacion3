@@ -132,6 +132,11 @@ jobs:
       - name: Checkout código
         uses: actions/checkout@v4
 
+      - name: Instalar dependencias
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+
       - name: Crear archivo docker-compose para staging
         run: |
           cat > docker-compose.staging.yml <<EOF
@@ -144,10 +149,10 @@ jobs:
               environment:
                 - SPRING_PROFILES_ACTIVE=staging
               healthcheck:
-                test: ["CMD", "curl", "-f", "http://localhost:8080/students"]
+                test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/students || exit 1"]
                 interval: 30s
                 timeout: 10s
-                retries: 3
+                retries: 5
                 start_period: 40s
           EOF
 
@@ -158,7 +163,14 @@ jobs:
       - name: Esperar a que la aplicación esté lista
         run: |
           echo "Esperando a que la aplicación inicie..."
-          timeout 60 bash -c 'until curl -f http://localhost:8080/students; do sleep 5; done'
+          for i in {1..12}; do
+            if curl -f http://localhost:8080/students 2>/dev/null; then
+              echo "✅ Aplicación lista"
+              break
+            fi
+            echo "Intento $i/12: Esperando..."
+            sleep 10
+          done
 
       - name: Ejecutar pruebas de humo (smoke tests)
         run: |
@@ -167,7 +179,8 @@ jobs:
           if [ $response -eq 200 ]; then
             echo "✅ Aplicación desplegada correctamente"
           else
-            echo "❌ Error en el despliegue"
+            echo "❌ Error en el despliegue - HTTP $response"
+            docker-compose -f docker-compose.staging.yml logs
             exit 1
           fi
 
@@ -177,7 +190,7 @@ jobs:
           if [ $response -eq 200 ]; then
             echo "✅ Consola H2 accesible"
           else
-            echo "⚠️ Consola H2 no accesible"
+            echo "⚠️ Consola H2 no accesible (HTTP $response)"
           fi
 
       - name: Mostrar logs de la aplicación
