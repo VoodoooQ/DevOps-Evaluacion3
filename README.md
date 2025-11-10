@@ -281,30 +281,6 @@ docker-compose down
 
 ---
 
-## 🤝 Contribuir
-
-```bash
-# Crear rama
-git checkout -b feature/nueva-funcionalidad
-
-# Hacer cambios y commit
-git add .
-git commit -m "feat: Descripción del cambio"
-
-# Push
-git push origin feature/nueva-funcionalidad
-
-# Crear Pull Request en GitHub
-# El pipeline se ejecutará automáticamente
-# Solo se puede mergear si todos los checks pasan ✅
-```
-
----
-
 ## 👥 Autor
 
 **Maximiliano Andres Diaz Caro**
-
-## 📄 Licencia
-
-MIT License 
