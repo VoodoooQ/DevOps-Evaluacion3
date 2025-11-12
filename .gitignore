@@ -36,6 +36,10 @@ build/
 ANALISIS-CUMPLIMIENTO.md
 GUIA-CONFIGURACION.md
 
+### Snyk ###
+.snyk
+snyk-report.json
+
 ### Docker ###
 *.log
 docker-compose.staging.yml

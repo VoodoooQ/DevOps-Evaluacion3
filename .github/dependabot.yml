@@ -12,6 +12,11 @@ updates:
     labels:
       - "dependencies"
       - "security"
+    # Ignorar actualizaciones de versiones incompatibles
+    ignore:
+      # Spring Boot 3.3.x requiere Java 17, no actualizar a versiones que requieran Java 21+
+      - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
+        update-types: ["version-update:semver-major"]
   
   # Monitoreo del Dockerfile
   - package-ecosystem: "docker"
@@ -24,6 +29,10 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+    # Mantener Java 17 compatible con Spring Boot 3.3.7
+    ignore:
+      - dependency-name: "eclipse-temurin"
+        versions: ["18", "19", "20", "21", "22", "23", "24", "25"]
 
   # Monitoreo de GitHub Actions
   - package-ecosystem: "github-actions"
@@ -35,3 +44,9 @@ updates:
     labels:
       - "github-actions"
       - "dependencies"
+    ignore:
+      # Mantener versiones estables de actions
+      - dependency-name: "actions/checkout"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "actions/setup-java"
+        update-types: ["version-update:semver-major"]
