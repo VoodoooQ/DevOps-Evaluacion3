@@ -78,15 +78,20 @@ jobs:
 
       - name: Ejecutar análisis de Snyk
         run: |
-          snyk test \
-            --severity-threshold=high \
-            --fail-on=all \
-            --json-file-output=snyk-report.json \
-            -- || true
+          # Dar permisos de ejecución a mvnw
+          chmod +x mvnw
           
-          # El reporte se genera siempre, pero ahora validamos manualmente
-          if snyk test --severity-threshold=high --fail-on=all; then
-            echo "✅ No se encontraron vulnerabilidades críticas"
+          # Generar reporte JSON (permitir que continúe aunque falle)
+          snyk test \
+            --maven-aggregate-project \
+            --severity-threshold=high \
+            --json-file-output=snyk-report.json \
+            -- || echo "Reporte generado"
+          
+          # Ahora ejecutar análisis estricto que detendrá el pipeline
+          echo "🔍 Ejecutando análisis de seguridad con quality gate..."
+          if snyk test --maven-aggregate-project --severity-threshold=high --fail-on=all; then
+            echo "✅ No se encontraron vulnerabilidades HIGH o CRITICAL"
           else
             echo "❌ Se encontraron vulnerabilidades HIGH o CRITICAL"
             echo "🛑 Pipeline detenido por quality gate (IE6)"
