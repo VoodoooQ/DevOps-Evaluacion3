@@ -35,14 +35,14 @@ jobs:
 
       - name: Subir reporte de pruebas
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: test-results
           path: target/surefire-reports/
 
       - name: Subir reporte de cobertura
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: target/site/jacoco/
@@ -104,7 +104,7 @@ jobs:
       # Subir reporte SIEMPRE (incluso si falla)
       - name: Subir reporte de Snyk
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: snyk-security-report
           path: snyk-report.json
