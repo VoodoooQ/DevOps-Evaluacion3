@@ -1,0 +1,62 @@
+# ==========================================
+# CONFIGURACIÓN DE PROMETHEUS
+# ==========================================
+# Scraping de métricas desde:
+# - Spring Boot Actuator (/actuator/prometheus)
+# - Prometheus propio (self-monitoring)
+#
+# IE1: Configuración de herramientas de monitoreo (20%)
+# ==========================================
+
+global:
+  scrape_interval: 15s      # Frecuencia de recolección de métricas
+  evaluation_interval: 15s  # Frecuencia de evaluación de reglas
+  scrape_timeout: 10s       # Timeout para scraping
+  external_labels:
+    monitor: 'bdget-devops-stack'
+    environment: 'docker'
+
+# Configuración de alertas (opcional para futuras expansiones)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Reglas de alertas (puede expandirse en el futuro)
+rule_files:
+  # - "alerts/*.yml"
+
+# ==========================================
+# CONFIGURACIÓN DE SCRAPING
+# ==========================================
+scrape_configs:
+  # ----------------------------------------
+  # SPRING BOOT APPLICATION - Métricas de aplicación
+  # ----------------------------------------
+  - job_name: 'spring-boot-app'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['app:8080']
+        labels:
+          application: 'bdget'
+          service: 'spring-boot'
+          tier: 'backend'
+    
+    # Métricas específicas a recolectar - Regex combinado para mejor performance
+    metric_relabel_configs:
+      # Mantener todas las métricas relevantes en una sola regla
+      - source_labels: [__name__]
+        regex: '(jvm_|http_|resilience4j_|application_|system_|process_).*'
+        action: keep
+
+  # ----------------------------------------
+  # PROMETHEUS SELF-MONITORING
+  # ----------------------------------------
+  - job_name: 'prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          application: 'prometheus'
+          service: 'monitoring'

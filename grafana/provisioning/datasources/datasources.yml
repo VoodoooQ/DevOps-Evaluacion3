@@ -1,0 +1,78 @@
+# ==========================================
+# GRAFANA DATASOURCES - AUTOCONFIGURACIÓN
+# ==========================================
+# Configura automáticamente las fuentes de datos:
+# 1. Prometheus - Métricas
+# 2. Loki - Logs
+#
+# IE1: Configuración de herramientas de monitoreo (20%)
+# IE3: Dashboard con métricas clave (10%)
+# ==========================================
+
+apiVersion: 1
+
+deleteDatasources:
+  - name: Prometheus
+    orgId: 1
+  - name: Loki
+    orgId: 1
+
+datasources:
+  # ----------------------------------------
+  # PROMETHEUS - Fuente de Métricas
+  # ----------------------------------------
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    uid: prometheus-uid
+    url: http://prometheus:9090
+    isDefault: true
+    version: 1
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: "15s"
+      queryTimeout: "60s"
+      tlsSkipVerify: true
+      # Habilitar navegador de métricas
+      enableMetricsBrowser: true
+      # Cache de queries
+      cacheLevel: 'High'
+      # Incrementales (mejora performance)
+      incrementalQuerying: true
+      incrementalQueryOverlapWindow: 10m
+      # Ejemplar para tracing (futuro)
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo-uid
+
+  # ----------------------------------------
+  # LOKI - Fuente de Logs
+  # ----------------------------------------
+  - name: Loki
+    type: loki
+    access: proxy
+    orgId: 1
+    uid: loki-uid
+    url: http://loki:3100
+    isDefault: false
+    version: 1
+    editable: false
+    jsonData:
+      httpMethod: GET
+      maxLines: 1000
+      # Derivar campos desde logs
+      derivedFields:
+        - datasourceUid: tempo-uid
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: '$${__value.raw}'
+        - datasourceUid: prometheus-uid
+          matcherRegex: "logger=(\\w+)"
+          name: Logger
+          url: ''
+      # Alertas desde Loki
+      alertmanagerUid: alertmanager-uid
+      # Timeout para queries de logs
+      timeout: 60

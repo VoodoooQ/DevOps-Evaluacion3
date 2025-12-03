@@ -1,0 +1,99 @@
+# ==========================================
+# KUBERNETES CONFIGMAP
+# ==========================================
+# IE2: Orquestación con Kubernetes (20%)
+# Configuración externalizada de la aplicación
+# ==========================================
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bdget-config
+  namespace: default
+  labels:
+    app: bdget
+    tier: backend
+data:
+  # ==========================================
+  # SPRING BOOT CONFIGURATION
+  # ==========================================
+  SPRING_APPLICATION_NAME: "bdget-kubernetes"
+  
+  # Database configuration (H2 in-memory)
+  SPRING_DATASOURCE_URL: "jdbc:h2:mem:testdb"
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.h2.Driver"
+  SPRING_DATASOURCE_USERNAME: "sa"
+  SPRING_JPA_DATABASE_PLATFORM: "org.hibernate.dialect.H2Dialect"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "create-drop"
+  SPRING_JPA_SHOW_SQL: "false"
+  SPRING_H2_CONSOLE_ENABLED: "false"
+  
+  # Logging configuration
+  LOGGING_LEVEL_ROOT: "INFO"
+  LOGGING_LEVEL_COM_EXAMPLE_BDGET: "DEBUG"
+  LOGGING_FILE_NAME: "/var/log/app/application.log"
+  LOGGING_PATTERN_CONSOLE: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+  LOGGING_PATTERN_FILE: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  
+  # Actuator configuration
+  MANAGEMENT_ENDPOINTS_WEB_BASE_PATH: "/actuator"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+  MANAGEMENT_HEALTH_LIVENESSSTATE_ENABLED: "true"
+  MANAGEMENT_HEALTH_READINESSSTATE_ENABLED: "true"
+  
+  # Metrics configuration
+  MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: "true"
+  MANAGEMENT_METRICS_TAGS_APPLICATION: "bdget-k8s"
+  MANAGEMENT_METRICS_TAGS_ENVIRONMENT: "kubernetes"
+  
+  # Server configuration
+  SERVER_SHUTDOWN: "graceful"
+  SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: "30s"
+  SERVER_COMPRESSION_ENABLED: "true"
+  SERVER_COMPRESSION_MIME_TYPES: "text/html,text/xml,text/plain,text/css,application/json,application/javascript"
+  
+  # ==========================================
+  # APPLICATION PROPERTIES FILE
+  # ==========================================
+  application.properties: |
+    # Spring Boot Application
+    spring.application.name=bdget-kubernetes
+    
+    # Database H2
+    spring.datasource.url=jdbc:h2:mem:testdb
+    spring.datasource.driver-class-name=org.h2.Driver
+    spring.datasource.username=sa
+    spring.datasource.password=
+    spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+    spring.jpa.hibernate.ddl-auto=create-drop
+    spring.jpa.show-sql=false
+    spring.h2.console.enabled=false
+    spring.sql.init.mode=always
+    
+    # Logging
+    logging.level.root=INFO
+    logging.level.com.example.bdget=DEBUG
+    logging.file.name=/var/log/app/application.log
+    logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} - %msg%n
+    logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
+    
+    # Actuator
+    management.endpoints.web.exposure.include=health,metrics,prometheus,info
+    management.endpoints.web.base-path=/actuator
+    management.endpoint.health.show-details=always
+    management.endpoint.health.probes.enabled=true
+    management.health.livenessState.enabled=true
+    management.health.readinessState.enabled=true
+    
+    # Metrics
+    management.metrics.export.prometheus.enabled=true
+    management.metrics.tags.application=bdget-k8s
+    management.metrics.tags.environment=kubernetes
+    
+    # Server
+    server.port=8080
+    server.shutdown=graceful
+    spring.lifecycle.timeout-per-shutdown-phase=30s
+    server.compression.enabled=true
+    server.compression.mime-types=text/html,text/xml,text/plain,text/css,application/json,application/javascript

@@ -1,52 +1,131 @@
-# Ignorar archivos de compilación y temporales
+# =============================================================================
+# .dockerignore - Excluir archivos innecesarios del contexto de Docker
+# =============================================================================
+# Este archivo optimiza el build de Docker excluyendo archivos que no son
+# necesarios en la imagen final
+
+# =============================================================================
+# DIRECTORIOS DE BUILD Y COMPILACIÓN
+# =============================================================================
 target/
 !target/*.jar
+build/
+*.class
+logs/
+*.log
 
-# Maven
+# =============================================================================
+# MAVEN
+# =============================================================================
 .mvn/
 mvnw
 mvnw.cmd
+.m2/
 
-# Git
+# =============================================================================
+# ARCHIVOS DE CONTROL DE VERSIONES
+# =============================================================================
 .git/
 .gitignore
-
-# IDE
-.idea/
-*.iml
-.vscode/
-.settings/
-.project
-.classpath
-
-# Sistema operativo
-.DS_Store
-Thumbs.db
-
-# Documentación
-*.md
-!README.md
-
-# GitHub
+.gitattributes
 .github/
 
-# Logs
-*.log
+# =============================================================================
+# ARCHIVOS DE CONFIGURACIÓN DE IDEs
+# =============================================================================
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
 
-# Variables de entorno
+# Eclipse
+.classpath
+.project
+.settings/
+.metadata/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# NetBeans
+nbproject/
+
+# =============================================================================
+# ARCHIVOS DE SISTEMA OPERATIVO
+# =============================================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+
+# =============================================================================
+# ARCHIVOS DE DOCUMENTACIÓN
+# =============================================================================
+*.md
+!README.md
+*.txt
+*.pdf
+FASE*.txt
+
+# =============================================================================
+# ARCHIVOS DE CI/CD Y TESTING
+# =============================================================================
+*.sh
+*.bat
+*.ps1
+scripts/
+test-results/
+coverage/
+jacoco/
+
+# =============================================================================
+# ARCHIVOS DE DOCKER Y KUBERNETES
+# =============================================================================
+Dockerfile.dev
+Dockerfile.test
+docker-compose*.yml
+k8s/
+kubernetes/
+
+# Configuraciones de herramientas de monitoreo
+prometheus/
+grafana/
+loki/
+promtail/
+alertmanager/
+
+# =============================================================================
+# ARCHIVOS TEMPORALES
+# =============================================================================
+*.tmp
+*.temp
+*.swp
+*.bak
+
+# =============================================================================
+# ARCHIVOS SENSIBLES
+# =============================================================================
 .env
 .env.local
-
-# Oracle Wallet (credenciales sensibles)
 Wallet_*/
 *.sso
 *.p12
 *.pem
 *.jks
+*.key
+*.keystore
+credentials.json
+secrets.yaml
 
-# Archivos de configuración local
+# =============================================================================
+# ARCHIVOS DE CONFIGURACIÓN LOCAL
+# =============================================================================
 nginx.conf
-docker-compose*.yml
+verify-fixes.ps1
+sumario-pipeline.md
 
 # Tests
 src/test/

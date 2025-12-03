@@ -1,0 +1,63 @@
+# ==========================================
+# HORIZONTAL POD AUTOSCALER (HPA)
+# ==========================================
+# IE2: Orquestación con Kubernetes (20%)
+# Auto-escalado basado en CPU y memoria
+# ==========================================
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: bdget-hpa
+  namespace: default
+  labels:
+    app: bdget
+    tier: backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: bdget-app
+  
+  minReplicas: 2      # Mínimo 2 réplicas
+  maxReplicas: 10     # Máximo 10 réplicas
+  
+  metrics:
+  # Escalado basado en CPU
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # Escala cuando CPU > 70%
+  
+  # Escalado basado en memoria
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # Escala cuando memoria > 80%
+  
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Espera 5 min antes de reducir
+      policies:
+      - type: Percent
+        value: 50           # Reduce máximo 50% de pods
+        periodSeconds: 60   # En ventana de 60s
+      - type: Pods
+        value: 2            # O máximo 2 pods
+        periodSeconds: 60   # En ventana de 60s
+      selectPolicy: Min     # Usa la política más conservadora
+    
+    scaleUp:
+      stabilizationWindowSeconds: 60   # Espera 1 min antes de aumentar
+      policies:
+      - type: Percent
+        value: 100          # Aumenta hasta 100% (duplica)
+        periodSeconds: 30   # En ventana de 30s
+      - type: Pods
+        value: 4            # O máximo 4 pods
+        periodSeconds: 30   # En ventana de 30s
+      selectPolicy: Max     # Usa la política más agresiva

@@ -1,0 +1,107 @@
+# ==========================================
+# KUBERNETES INGRESS
+# ==========================================
+# IE2: Orquestación con Kubernetes (20%)
+# Ingress para exposición HTTP externa
+# ==========================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bdget-ingress
+  namespace: default
+  labels:
+    app: bdget
+    tier: backend
+  annotations:
+    # Nginx Ingress Controller annotations
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    
+    # Health check configuration
+    nginx.ingress.kubernetes.io/health-check-path: "/actuator/health"
+    nginx.ingress.kubernetes.io/health-check-interval: "10s"
+    
+    # Connection limits
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    
+    # Request size limits
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    
+    # CORS configuration (opcional)
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+spec:
+  ingressClassName: nginx  # Usar Nginx Ingress Controller
+  rules:
+  - host: bdget.local  # Dominio local (editar /etc/hosts)
+    http:
+      paths:
+      # API endpoints
+      - path: /students
+        pathType: Prefix
+        backend:
+          service:
+            name: bdget-service
+            port:
+              number: 80
+      
+      # Actuator endpoints
+      - path: /actuator
+        pathType: Prefix
+        backend:
+          service:
+            name: bdget-service
+            port:
+              number: 80
+      
+      # Root path
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: bdget-service
+            port:
+              number: 80
+  
+  # Default backend (opcional)
+  defaultBackend:
+    service:
+      name: bdget-service
+      port:
+        number: 80
+
+---
+# ==========================================
+# INGRESS ALTERNATIVO - SIN HOSTNAME
+# ==========================================
+# Para acceso directo sin configurar DNS/hosts
+# ==========================================
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bdget-ingress-default
+  namespace: default
+  labels:
+    app: bdget
+    tier: backend
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:  # Sin host específico - acepta cualquier dominio
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: bdget-service
+            port:
+              number: 80

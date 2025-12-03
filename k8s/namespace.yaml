@@ -1,0 +1,72 @@
+# ==========================================
+# KUBERNETES NAMESPACE
+# ==========================================
+# IE2: Orquestación con Kubernetes (20%)
+# Namespace dedicado para la aplicación
+# ==========================================
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bdget-app
+  labels:
+    name: bdget-app
+    environment: production
+    project: evaluacion-devops
+    team: backend
+
+---
+# ==========================================
+# RESOURCE QUOTA - Límites de recursos del namespace
+# ==========================================
+
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: bdget-quota
+  namespace: bdget-app
+spec:
+  hard:
+    requests.cpu: "4"          # Máximo 4 CPU cores solicitados
+    requests.memory: "8Gi"     # Máximo 8GB RAM solicitados
+    limits.cpu: "8"            # Máximo 8 CPU cores límite
+    limits.memory: "16Gi"      # Máximo 16GB RAM límite
+    pods: "20"                 # Máximo 20 pods
+    services: "10"             # Máximo 10 services
+    persistentvolumeclaims: "5" # Máximo 5 PVCs
+
+---
+# ==========================================
+# LIMIT RANGE - Límites por defecto para pods
+# ==========================================
+
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: bdget-limits
+  namespace: bdget-app
+spec:
+  limits:
+  # Límites para contenedores
+  - type: Container
+    default:           # Límites por defecto si no se especifican
+      cpu: "1000m"
+      memory: "1Gi"
+    defaultRequest:    # Requests por defecto si no se especifican
+      cpu: "250m"
+      memory: "512Mi"
+    max:               # Máximo permitido
+      cpu: "2000m"
+      memory: "2Gi"
+    min:               # Mínimo requerido
+      cpu: "100m"
+      memory: "128Mi"
+  
+  # Límites para pods
+  - type: Pod
+    max:
+      cpu: "4000m"
+      memory: "4Gi"
+    min:
+      cpu: "200m"
+      memory: "256Mi"

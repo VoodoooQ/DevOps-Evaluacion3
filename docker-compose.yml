@@ -1,64 +1,150 @@
 version: '3.8'
 
+# ==========================================
+# STACK DE OBSERVABILIDAD - EVALUACIÓN DEVOPS
+# ==========================================
+# Servicios:
+# - app: Aplicación Spring Boot (puerto 8080)
+# - prometheus: Métricas (puerto 9090)
+# - grafana: Dashboards (puerto 3000)
+# - loki: Agregador de logs (puerto 3100)
+# - promtail: Recolector de logs
+#
+# Indicadores de evaluación cubiertos:
+# IE1: Configuración de herramientas de monitoreo (20%)
+# IE2: Despliegue con observabilidad (20%)
+# IE3: Dashboard con métricas clave (10%)
+# ==========================================
+
 services:
-  # Servicio principal de la aplicación Spring Boot
-  springboot-app:
+  # ==========================================
+  # APLICACIÓN SPRING BOOT
+  # ==========================================
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: springboot-app:latest
-    container_name: springboot-app-container
+    container_name: bdget-app
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=production
-      # Persistencia opcional: cambiar a jdbc:h2:file:/data/testdb si se requiere
+      - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:h2:mem:testdb
       - SPRING_DATASOURCE_USERNAME=SA
       - SPRING_DATASOURCE_PASSWORD=
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_H2_CONSOLE_ENABLED=true
-    # Healthcheck para monitoreo de salud del contenedor
+      - JAVA_OPTS=-Xms256m -Xmx512m
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/students"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 40s
     networks:
-      - app-network
-    restart: unless-stopped
-    # Descomentar si se requiere persistencia
-    # volumes:
-    #   - app-data:/data
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.5'
-          memory: 256M
-
-  # Nginx como reverse proxy (opcional para producción)
-  nginx:
-    image: nginx:alpine
-    container_name: nginx-proxy
-    ports:
-      - "80:80"
+      - observability
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - springboot-app
-    networks:
-      - app-network
+      - app-logs:/var/log/app
+    labels:
+      logging: "promtail"
+      monitoring: "prometheus"
     restart: unless-stopped
+
+  # ==========================================
+  # PROMETHEUS - Recolección de Métricas
+  # ==========================================
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=7d'
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - observability
+    restart: unless-stopped
+    depends_on:
+      - app
+
+  # ==========================================
+  # GRAFANA - Dashboards y Visualización
+  # ==========================================
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - observability
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+
+  # ==========================================
+  # LOKI - Agregación de Logs
+  # ==========================================
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # ==========================================
+  # PROMTAIL - Recolector de Logs
+  # ==========================================
+  promtail:
+    image: grafana/promtail:2.9.3
+    container_name: promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - app-logs:/var/log/app:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - observability
+    restart: unless-stopped
+    depends_on:
+      - loki
+      - app
 
 networks:
-  app-network:
+  observability:
     driver: bridge
-    name: springboot-network
+    name: observability-network
 
 volumes:
-  app-data:
-    name: springboot-data
+  prometheus-data:
+    name: prometheus-data
+  grafana-data:
+    name: grafana-data
+  loki-data:
+    name: loki-data
+  app-logs:
+    name: app-logs

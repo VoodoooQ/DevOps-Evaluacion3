@@ -1,0 +1,54 @@
+# ==========================================
+# KUBERNETES SERVICE - SPRING BOOT APP
+# ==========================================
+# IE2: Orquestación con Kubernetes (20%)
+# Service para balanceo de carga interno
+# ==========================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: bdget-service
+  namespace: default
+  labels:
+    app: bdget
+    tier: backend
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/actuator/prometheus"
+    prometheus.io/port: "8080"
+spec:
+  type: ClusterIP  # Acceso interno al cluster
+  selector:
+    app: bdget
+    tier: backend
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80          # Puerto expuesto por el Service
+    targetPort: 8080  # Puerto del contenedor
+  sessionAffinity: None  # Sin afinidad de sesión (stateless)
+
+---
+# ==========================================
+# HEADLESS SERVICE (Para descubrimiento directo de pods)
+# ==========================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: bdget-headless
+  namespace: default
+  labels:
+    app: bdget
+    tier: backend
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service
+  selector:
+    app: bdget
+    tier: backend
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080

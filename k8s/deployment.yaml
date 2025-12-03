@@ -1,0 +1,154 @@
+# ==========================================
+# KUBERNETES DEPLOYMENT - SPRING BOOT APP
+# ==========================================
+# IE2: Orquestación con Kubernetes (20%)
+# Deployment con réplicas, health checks y resource limits
+# ==========================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bdget-app
+  namespace: default
+  labels:
+    app: bdget
+    tier: backend
+    version: v1
+    environment: production
+spec:
+  replicas: 3  # Alta disponibilidad con 3 réplicas
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1        # Permite 1 pod adicional durante update
+      maxUnavailable: 1  # Máximo 1 pod no disponible durante update
+  selector:
+    matchLabels:
+      app: bdget
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: bdget
+        tier: backend
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+      - name: bdget-app
+        image: evaluacion2-devops-app:latest
+        imagePullPolicy: IfNotPresent  # Usa imagen local si existe
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        
+        # ==========================================
+        # HEALTH CHECKS
+        # ==========================================
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60  # Espera 60s después del inicio
+          periodSeconds: 10         # Verifica cada 10s
+          timeoutSeconds: 5         # Timeout de 5s
+          successThreshold: 1
+          failureThreshold: 3       # Reinicia después de 3 fallos
+        
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 30   # Espera 30s después del inicio
+          periodSeconds: 5          # Verifica cada 5s
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3       # Saca del balanceo después de 3 fallos
+        
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 30      # 300s máximo para startup (30 * 10s)
+        
+        # ==========================================
+        # RESOURCE LIMITS
+        # ==========================================
+        resources:
+          requests:
+            memory: "512Mi"   # Mínimo garantizado
+            cpu: "250m"       # 0.25 CPU cores
+          limits:
+            memory: "1Gi"     # Máximo permitido
+            cpu: "1000m"      # 1 CPU core máximo
+        
+        # ==========================================
+        # ENVIRONMENT VARIABLES
+        # ==========================================
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "production"
+        - name: JAVA_OPTS
+          value: "-Xmx768m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+          value: "health,metrics,prometheus,info"
+        
+        # ConfigMap reference
+        envFrom:
+        - configMapRef:
+            name: bdget-config
+        
+        # ==========================================
+        # VOLUME MOUNTS
+        # ==========================================
+        volumeMounts:
+        - name: app-logs
+          mountPath: /var/log/app
+        - name: tmp
+          mountPath: /tmp
+      
+      # ==========================================
+      # VOLUMES
+      # ==========================================
+      volumes:
+      - name: app-logs
+        emptyDir: {}  # Volumen temporal para logs
+      - name: tmp
+        emptyDir: {}  # Volumen temporal para archivos temp
+      
+      # ==========================================
+      # SECURITY & SCHEDULING
+      # ==========================================
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      restartPolicy: Always
+      
+      # Anti-affinity para distribuir pods en diferentes nodos
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - bdget
+              topologyKey: kubernetes.io/hostname

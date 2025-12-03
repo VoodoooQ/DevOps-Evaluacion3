@@ -1,0 +1,77 @@
+# =============================================================================
+# CONFIGURACIÓN PARA KUBERNETES
+# =============================================================================
+# Este archivo se activa cuando el perfil "kubernetes" está habilitado
+# Sobreescribe configuraciones específicas para el entorno de Kubernetes
+
+spring:
+  application:
+    name: microservicio-evaluacion
+  
+  # Base de datos en Kubernetes (H2 en memoria para este ejercicio)
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+# Puerto del servidor (mismo que el deployment)
+server:
+  port: 8080
+
+# =============================================================================
+# ACTUATOR Y MÉTRICAS EN KUBERNETES
+# =============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+      base-path: /actuator
+  
+  # Health checks optimizados para Kubernetes
+  health:
+    show-details: always
+    probes:
+      enabled: true
+    # Configuración de liveness probe
+    livenessstate:
+      enabled: true
+    # Configuración de readiness probe
+    readinessstate:
+      enabled: true
+  
+  # Métricas con tags de Kubernetes
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: kubernetes
+      # Namespace de Kubernetes (se puede sobreescribir con variables de entorno)
+      namespace: ${KUBERNETES_NAMESPACE:evaluacion-devops}
+      # Nombre del pod (se inyecta desde Kubernetes)
+      pod: ${HOSTNAME:unknown}
+
+# =============================================================================
+# LOGGING EN KUBERNETES
+# =============================================================================
+# Logging estructurado para recolección con Promtail/Loki
+logging:
+  level:
+    root: INFO
+    com.example.bdget: INFO
+  pattern:
+    # Formato JSON para mejor parseo en Loki
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# =============================================================================
+# RESILIENCE4J EN KUBERNETES
+# =============================================================================
+resilience4j:
+  circuitbreaker:
+    instances:
+      backendService:
+        slidingWindowSize: 20
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 5
+        registerHealthIndicator: true

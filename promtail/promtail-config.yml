@@ -1,0 +1,196 @@
+# ==========================================
+# CONFIGURACIÓN DE PROMTAIL
+# ==========================================
+# Recolector de logs que envía a Loki
+# Recolecta logs de:
+# - Aplicación Spring Boot (archivos de log)
+# - Contenedores Docker (stdout/stderr)
+#
+# IE1: Configuración de herramientas de monitoreo (20%)
+# ==========================================
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+# Cliente de Loki - donde enviar los logs
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+    timeout: 10s
+
+# Posiciones - seguimiento de logs ya procesados
+positions:
+  filename: /tmp/positions.yaml
+
+# ==========================================
+# CONFIGURACIÓN DE SCRAPING DE LOGS
+# ==========================================
+scrape_configs:
+  # ----------------------------------------
+  # LOGS DE APLICACIÓN SPRING BOOT (archivos)
+  # ----------------------------------------
+  - job_name: spring-boot-logs
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: spring-boot-app
+          application: bdget
+          environment: docker
+          __path__: /var/log/app/*.log
+    
+    # Pipeline de procesamiento de logs
+    pipeline_stages:
+      # Parsear timestamp
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})'
+      
+      # Parsear nivel de log
+      - regex:
+          expression: '\s+(?P<level>TRACE|DEBUG|INFO|WARN|ERROR|FATAL)\s+'
+      
+      # Parsear clase Java
+      - regex:
+          expression: '\[(?P<thread>[^\]]+)\]\s+(?P<logger>[^\s]+)'
+      
+      # Extraer labels
+      - labels:
+          level:
+          thread:
+          logger:
+      
+      # Parsear timestamp como timestamp oficial
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05'
+      
+      # Output formateado
+      - output:
+          source: message
+
+  # ----------------------------------------
+  # LOGS DE CONTENEDORES DOCKER (stdout/stderr)
+  # ----------------------------------------
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    
+    relabel_configs:
+      # Solo contenedores con label logging=promtail
+      - source_labels: ['__meta_docker_container_label_logging']
+        regex: 'promtail'
+        action: keep
+      
+      # Nombre del contenedor como label
+      - source_labels: ['__meta_docker_container_name']
+        target_label: 'container_name'
+        regex: '/(.*)'
+        replacement: '$1'
+      
+      # ID del contenedor
+      - source_labels: ['__meta_docker_container_id']
+        target_label: 'container_id'
+      
+      # Imagen del contenedor
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+      
+      # Path a logs del contenedor
+      - source_labels: ['__meta_docker_container_id']
+        target_label: '__path__'
+        replacement: '/var/lib/docker/containers/$1/*.log'
+    
+    # Pipeline de procesamiento para logs de Docker
+    pipeline_stages:
+      # Parsear JSON de Docker
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            timestamp: time
+      
+      # Extraer stream (stdout/stderr)
+      - labels:
+          stream:
+      
+      # Timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+      
+      # Output
+      - output:
+          source: output
+
+  # ----------------------------------------
+  # LOGS JSON DE SPRING BOOT (logback JSON)
+  # ----------------------------------------
+  - job_name: spring-boot-json
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: spring-boot-json
+          application: bdget
+          environment: docker
+          __path__: /var/log/app/*-json.log
+    
+    # Pipeline para parsear JSON
+    pipeline_stages:
+      # Parsear todo el log como JSON
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            thread: thread
+            logger: logger_name
+            message: message
+            exception: exception
+      
+      # Extraer labels importantes
+      - labels:
+          level:
+          logger:
+      
+      # Timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+      
+      # Output con mensaje y excepción (si existe)
+      - template:
+          source: output
+          template: '{{ .message }}{{ if .exception }} | Exception: {{ .exception }}{{ end }}'
+      
+      - output:
+          source: output
+
+  # ----------------------------------------
+  # LOGS DEL SISTEMA (syslog - opcional)
+  # ----------------------------------------
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*.log
+    
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\w+\s+\d+\s+\d{2}:\d{2}:\d{2})\s+(?P<hostname>\S+)\s+(?P<service>\S+)\[?(?P<pid>\d+)?\]?:\s+(?P<message>.*)$'
+      
+      - labels:
+          hostname:
+          service:
+      
+      - timestamp:
+          source: timestamp
+          format: 'Jan _2 15:04:05'
+          location: 'America/Santiago'
