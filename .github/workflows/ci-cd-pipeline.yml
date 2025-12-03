@@ -69,13 +69,13 @@ jobs:
         run: mvn clean package -DskipTests
 
       # Usar acción oficial de Snyk para mejor integración
+      # IMPORTANTE: Sin continue-on-error, el pipeline se detiene ante vulnerabilidades críticas (IE6)
       - name: Ejecutar análisis de Snyk
         uses: snyk/actions/maven@master
-        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --json-file-output=snyk-report.json
+          args: --severity-threshold=high --fail-on=all --json-file-output=snyk-report.json
       
       # Subir reporte SIEMPRE (incluso si falla)
       - name: Subir reporte de Snyk
