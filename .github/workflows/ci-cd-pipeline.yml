@@ -68,27 +68,30 @@ jobs:
       - name: Compilar proyecto
         run: mvn clean install -DskipTests
 
+      # Instalar Snyk CLI
+      - name: Instalar Snyk CLI
+        run: npm install -g snyk
+
       # IMPORTANTE: Sin continue-on-error, el pipeline se detiene ante vulnerabilidades críticas (IE6)
+      - name: Autenticar Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+
       - name: Ejecutar análisis de Snyk
-        uses: snyk/actions/maven@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
-        with:
-          command: test
-          args: --severity-threshold=high --fail-on=all
-      
-      # Generar reporte JSON (solo se ejecuta si Snyk pasa)
-      - name: Generar reporte JSON
-        if: success()
-        uses: snyk/actions/maven@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-          JAVA_HOME: ${{ env.JAVA_HOME_17_X64 }}
-        with:
-          command: test
-          args: --json-file-output=snyk-report.json
+        run: |
+          snyk test \
+            --severity-threshold=high \
+            --fail-on=all \
+            --json-file-output=snyk-report.json \
+            -- || true
+          
+          # El reporte se genera siempre, pero ahora validamos manualmente
+          if snyk test --severity-threshold=high --fail-on=all; then
+            echo "✅ No se encontraron vulnerabilidades críticas"
+          else
+            echo "❌ Se encontraron vulnerabilidades HIGH o CRITICAL"
+            echo "🛑 Pipeline detenido por quality gate (IE6)"
+            exit 1
+          fi
       
       # Subir reporte SIEMPRE (incluso si falla)
       - name: Subir reporte de Snyk
